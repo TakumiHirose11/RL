@@ -7,7 +7,6 @@
 # %%
 import numpy as np
 import matplotlib.pyplot as plt
-#%matplotlib inline
 from matplotlib import animation
 from IPython.display import HTML
 
@@ -62,13 +61,19 @@ possible_a = np.array([  #上、右、下、左
     [1, 1, 0, 0],      #8
 ])
 
+#状態遷移確率
 # p_t = 1
 
+#報酬関数g
 g = np.zeros((9,4))
-g[5,2] = 1 
+g[8,1] = 1 
+
+#初期状態分布 s=0から
 
 # %%
 def get_s_next(s, a):
+    if possible_a[s,a] == 0:
+        return None
     if a==0:
         return s-3
     elif a==1:
@@ -79,22 +84,45 @@ def get_s_next(s, a):
         return s-1
 
 # %%
+def epsilon_greedy(Q, eps=0.1):
+    pi = np.zeros_like(Q)
+    for s in range(Q.shape[0]):
+        Q_s = [Q[s,j] if possible_a[i,j]==1 else 0 for j in range(Q.shape[1])]
+        #行動が一つしかとれない場合の例外処理
+        if np.count_nonzero(possible_a[s,:] == 1) == 1:
+            pi[s, np.argmax(possible_a[s,:])] = 1
+            continue
+        #一般的な処理
+        for a in range(Q.shape[1]):
+            if possible_a[s,a] == 0:
+                continue
+            else:
+                pi[s, a] = eps / np.count_nonzero(possible_a[s,:] == 1)
+        pi[s, np.argmax(Q_s)] += 1 - eps  
+    return pi
+
+# %%
 def B_pi(Q, pi, ganma=0.9):
     pi_table = pi(Q=Q)
     Q_next = Q.copy()
     for s in range(Q.shape[0]):
         for a in range(Q.shape[1]):
-            Q_next[s,a] = g[s,a] + np.sum(pi_table[get_s_next(s,a),:].T * Q[get_s_next(s,a), :])
+            if [s,a] == [8,1]:
+                Q_next[s,a] = g[s,a]
+            elif not get_s_next(s,a) == None:
+                    Q_next[s,a] = g[s,a] + ganma *  np.sum(pi_table[get_s_next(s,a),:] * Q[get_s_next(s,a), :])
     delta = np.sum(Q_next - Q)
     return Q_next, delta
-    
 
 # %%
 def B_asterisk(Q, ganma=0.9):
     Q_next = Q.copy()
     for s in range(Q.shape[0]):
         for a in range(Q.shape[1]):
-            Q_next[s,a] = g[s,a] + ganma * np.argmax(Q[get_s_next(s,a), :])
+            if [s,a] == [8,1]:
+                Q_next[s,a] = g[s,a]
+            elif not get_s_next(s,a) == None:
+                Q_next[s,a] = g[s,a] + ganma * np.max(Q[get_s_next(s,a), :])
     delta = np.sum(Q_next - Q)
     return Q_next, delta
 
@@ -103,7 +131,7 @@ def learning_B_asterisk(ganma=0.9, epoch=1000, stop_epsilon=10e-3, pi=None):
     Q = np.zeros((9,4))
     delta_l = []
     for episode in range(epoch):
-        Q, delta = B_asterisk(Q=Q, ganma=ganma)
+        Q, delta = B_asterisk(Q=Q,)
         delta_l.append(delta)
         if delta < stop_epsilon:
             break
@@ -113,7 +141,7 @@ def learning_B_pi(ganma=0.9, epoch=1000, stop_epsilon=10e-3, pi=None):
     Q = np.zeros((9,4))
     delta_l = []
     for episode in range(epoch):
-        Q, delta = B_pi(Q=Q, ganma=ganma, pi=pi)
+        Q, delta = B_pi(Q=Q, pi=pi)
         delta_l.append(delta)
         if delta < stop_epsilon:
             break
@@ -129,25 +157,42 @@ def pi_d(pi):
     return pi_d
 
 # %%
-Q_pi, pi_delta = learning_B_pi(B_pi, pi=epsilon_greedy)
-Q_asterisk, as_delta = learning_B_asterisk(B_asterisk)
+Q_pi, pi_delta = learning_B_pi(B_pi, pi=epsilon_greedy, stop_epsilon=10e-5)
+Q_asterisk, as_delta = learning_B_asterisk(B_asterisk, stop_epsilon=10e-5)
 
 # %%
 pi_d1 = pi_d(Q_pi)
 pi_d2 = pi_d(Q_asterisk)
 
+print("Q_pi")
 print(Q_pi)
-print(Q_asterisk)
-
 print(pi_d1)
+
+print()
+print("Q_asterisk")
+print(Q_asterisk)
 print(pi_d2)
 
-# %% [markdown]
-# - 過学習どころか、学習しすぎると悪化する（勾配の定義からループに入ったらやばそうなきがしていたが...）
-# - 価値に訪問回数を用いると、ループの価値が増えてしまう
-# - 逆温度の値でランダム性を高めても改善は見られない。グラフの形は結構変わるが。
-# - myの方が早く収束するがループにハマる回数が多い、本の方がわずかにまし。
+print()
+print(f"answer \n[1, 2, 3, 0, 1, 2, 0, 3, 1]")
 
+# %% [markdown]
+# - 両方とも8で右に行かない
+
+# %%
+graph = plt.figure()
+
+
+x = np.arange(len(pi_delta))
+g1 = graph.add_subplot(1, 3, 1)
+g1.plot(x, pi_delta, label="ε-greedy")
+x = np.arange(len(as_delta))
+g1.plot(x, as_delta, label="B_asterisk")
+g1.set_title("delta")
+g1.legend()
+
+plt.savefig("./result/graph2.png")
+plt.show()
 
 
 # %%
