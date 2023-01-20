@@ -1,12 +1,12 @@
+import copy
+
 import numpy as np
 import mojimoji
 
 class Node:
-    def __init__(self, up, down, left, right, reward=0):
-        self.up = up
-        self.down = down
-        self.left = left
-        self.right = right
+    def __init__(self, action, reward=0):
+        # up, down, right, left
+        self.action = action
         self.reward = reward
         self.is_visited = False
 
@@ -18,23 +18,28 @@ class GridWorld:
         self.start = start
         self.goal = goal
         self.reward = reward
-        self.board = self.init_board(h, w, reward)
+        self.board = self.init_board()
 
 
-    def init_board(self, h:int, w:int, reward:np.array):
-        board = [[None] * w] * h
-        for h_i in range(h):
-            for w_i in range(w):
-                node_i = Node(1, 1, 1, 1, reward[h_i][w_i])
+    def init_board(self):
+        board = [[None] * self.w] * self.h
+        for h_i in range(self.h):
+            for w_i in range(self.w):
+                node_i = Node(action=[1, 1, 1, 1], reward=self.reward[h_i][w_i])
+                # up
+                if h_i == self.h - 1:
+                    node_i.action[0] = 0
+                # down
                 if h_i == 0:
-                    node_i.up = 0
-                if h_i == h - 1:
-                    node_i.down = 0
+                    node_i.action[1] = 0
+                # right
                 if w_i == 0:
-                    node_i.left = 0
-                if w_i == w - 1:
-                    node_i.right = 0
-                board[h_i][w_i] = node_i
+                    node_i.action[2] = 0
+                # left
+                if w_i == self.w - 1:
+                    node_i.action[3] = 0
+                board[h_i][w_i] = copy.deepcopy(node_i)
+                del node_i
         return board
 
     def show(self):
@@ -44,7 +49,7 @@ class GridWorld:
             graph += "｜" + ("　" * max_l + "｜")*self.w + "\n"
             graph += "｜"
             for w_i in range(self.w):
-                r = mojimoji.han_to_zen(str(reward[h_i][w_i]))
+                r = mojimoji.han_to_zen(str(self.reward[h_i][w_i]))
                 space_l = int((max_l - len(r) + 1)/2)
                 graph += "　" * space_l + r + "　"*(max_l - space_l - len(r)) + "｜"
             graph += "\n"
@@ -62,7 +67,9 @@ if __name__ == '__main__':
             [-30, -100, 10, 100], ])
 
     GW = GridWorld(3, 4, [0, 0], [2, 3], reward)
-    GW.show()
+    print(GW.board[0][3].action)
+    print(GW.board[2][3].action)
+
 
 
 
