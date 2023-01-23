@@ -17,6 +17,25 @@ def get_s_next(s, a):
     elif a==3:
         return s-1
     
+theta_0 = np.array([  #上、右、下、左
+    [np.nan, 1, 1, np.nan],      #0
+    [np.nan, 1, 1, 1],           #1
+    [np.nan, np.nan, np.nan, 1], #2
+    [1, np.nan, 1, np.nan],      #3
+    [1, 1, np.nan, np.nan],      #4
+    [np.nan, np.nan, 1, 1],      #5
+    [1, 1, np.nan, np.nan],      #6
+    [np.nan, np.nan, np.nan, 1], #7
+    [1, 1, np.nan, np.nan],      #8
+])
+
+
+def get_a(s, pi_table):
+    if pi_table[s,:].sum() != 1:
+        pi_table = soft_max_policy(theta_0)
+        return np.random.choice([0,1,2,3], p=pi_table[s,:])
+    return np.random.choice([0,1,2,3], p=pi_table[s,:])
+    
 #可能な行動のリスト
 possible_a = np.array([  #上、右、下、左
     [0, 1, 1, 0],      #0
@@ -49,7 +68,6 @@ def pi_target(pi):
         pi_d[s] = np.argmax(pi_s)
     return pi_d
 
-
 def epsilon_greedy(Q, eps=0.3):
     pi = np.zeros_like(Q)
     for s in range(Q.shape[0]):
@@ -66,6 +84,23 @@ def epsilon_greedy(Q, eps=0.3):
                 pi[s, a] = eps / np.count_nonzero(possible_a[s,:] == 1)
         pi[s, np.argmax(Q_s)] += 1 - eps  
     return pi
+
+#最終的な方策
+def pi_d(pi):
+    pi_d = np.zeros(pi.shape[0])
+    for s in range(pi.shape[0]):
+        pi_s = pi[s, :]
+        pi_d[s] = np.argmax(pi_s)
+    return pi_d
+
+def fix_policy(pi_table):
+    for s in range(9):
+        for i in range(4):
+            if possible_a[s, i] == 0:
+                pi_table[s,i] = 0
+    for s in range(9):
+        pi_table[s,:] = pi_table[s,:] / pi_table[s,:].sum()
+    return pi_table
 
 """グラフ関連"""
 def make_subplot(graph, place, v, label_list=None, title=None):
